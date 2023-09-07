@@ -249,7 +249,9 @@ class BaseModel(ABC):
         return {
             "Number of Test Obs": test_labels.shape[0],
             "f1": f1,
-            "accuracy": accuracy
+            "accuracy": accuracy,
+            "Precision": precision,
+            "Recall": recall
         }
 
     def individual_evaluate(self, user_day_data: Any)->Dict[float, str]:
