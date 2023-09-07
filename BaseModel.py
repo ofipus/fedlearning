@@ -60,7 +60,6 @@ class TestCallback(keras.callbacks.Callback):
         print('\nTesting metrics: {}\n'.format(metrics))
         return metrics
 
-
 class BaseModel(ABC):
 
     def __init__(self, parameter_config: Dict[str, float]):
@@ -79,7 +78,6 @@ class BaseModel(ABC):
             from keras.layers import Dense
             from keras import optimizers
             from keras import backend as K  # for seed
-
 
             self.layers = parameter_config["layers"]
             self.input_dim = parameter_config["input_dim"]
@@ -180,7 +178,6 @@ class BaseModel(ABC):
             # initialize since we're printing to the csv
             fpr, tpr, auc_value = [[], [], None]
 
-
         # Precision
         precision = precision_score(test_labels, binary_prediction)
         # Recall
@@ -246,6 +243,10 @@ class BaseModel(ABC):
         class_predictions = np.argmax(predictions, axis=1)
         f1 = f1_score(test_labels, class_predictions, average="weighted")
         accuracy = accuracy_score(test_labels, class_predictions)
+        # Calculate Precision
+        precision = precision_score(test_labels, class_predictions, average='weighted')
+         # Calculate Recall
+        recall = recall_score(test_labels, class_predictions, average='weighted')
         return {
             "Number of Test Obs": test_labels.shape[0],
             "f1": f1,
@@ -284,5 +285,3 @@ class BaseModel(ABC):
     def check_is_trained(self)->None:
         if not self.is_trained:
             raise RuntimeError("Model not yet trained")
-
-
