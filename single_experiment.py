@@ -1,80 +1,77 @@
 import datetime
 import json
 import sys
+import logging
+import argparse
 
-# import user-defined functions
+ 
 
 from ExperimentUtils import ExperimentUtils
 
+# Initialize logging
+logging.basicConfig(level=logging.INFO)
 
-def main():
-    start = datetime.datetime.now()
-    
-    with open(sys.argv[1]) as file:
-        parameter_dict = json.load(file)
+def load_configuration(config_path):
+    try:
+        with open(config_path) as file:
+            return json.load(file)
+    except Exception as e:
+        logging.error(f"Error loading configuration: {e}")
+        sys.exit(1)
 
+def validate_configuration(config):
+    required_keys = ["model_type", "test_callback", "output_path", "plot_auc", "auc_output_path"]
+    for key in required_keys:
+        if key not in config:
+            logging.error(f"Missing key in configuration: {key}")
+            sys.exit(1)
 
-    train_data, test_data = ExperimentUtils.simple_train_test_split(
-        parameter_dict
-    )
-
-    # get the name of the model from the user-inputted json file
-    # and match it to the corresponding model object
-    model_class = ExperimentUtils.model_from_config(
-        parameter_dict['model_type']
-    )
-    model = model_class(parameter_config=parameter_dict)
-
+def run_experiment(config_path):
+    config = load_configuration(config_path)
+    validate_configuration(config)
+    train_data, test_data = ExperimentUtils.simple_train_test_split(config)
+    model_class = ExperimentUtils.model_from_config(config['model_type'])
+    model = model_class(parameter_config=config)
     results = ExperimentUtils.run_single_experiment(
-        model, train_data, test_data, parameter_dict['test_callback']
+        model, train_data, test_data, config['test_callback']
     )
 
-    if parameter_dict['model_type'] != 'baseline' and parameter_dict['model_type'] != 'moving_mean_model':
-        results['lr'] = parameter_dict['learn_rate']
-    
-    ind_results = model.individual_evaluate(test_data)
+    if config['model_type'] not in {'baseline', 'moving_mean_model'}:
+        results['lr'] = config['learn_rate']
+        ind_results = model.individual_evaluate(test_data)
 
-    if parameter_dict["plot_auc"]:
-
+    if config["plot_auc"]:
         ExperimentUtils.plot_auc(
             results["FPR"],
             results["TPR"],
             results["AUC"],
-            str(
-                parameter_dict["auc_output_path"] +
-                "_(" + parameter_dict['model_type'] + ")"
-            )
+            str(config["auc_output_path"] + "_(" + config['model_type'] + ")")
         )
-    try:
-        del results["FPR"]
-        del results["TPR"]
-    except KeyError:
-        pass
+
+    # Removing FPR and TPR for storage reasons
+    results.pop("FPR", None)
+    results.pop("TPR", None)
     ExperimentUtils.write_to_json(
         ind_results,
-        str(
-            parameter_dict["output_path"] + "_by_user" +
-            "_(" + parameter_dict['model_type'] + ")"
-        )
+        str(config["output_path"] + "_by_user" + "_(" + config['model_type'] + ")")
     )
     ExperimentUtils.write_to_csv(
         results,
-        str(
-            parameter_dict["output_path"] +
-            "_(" + parameter_dict['model_type'] + ")"
-        )
+        str(config["output_path"] + "_(" + config['model_type'] + ")")
     )
     ExperimentUtils.write_to_json(
         results,
-        str(
-            parameter_dict["output_path"] +
-            "_(" + parameter_dict['model_type'] + ")"
-        )
+        str(config["output_path"] + "_(" + config['model_type'] + ")")
     )
 
+def main():
+    parser = argparse.ArgumentParser(description="Run a single experiment based on provided configuration.")
+    parser.add_argument("config_path", help="Path to the JSON configuration file.")
+    args = parser.parse_args()
+    start = datetime.datetime.now()
+    run_experiment(args.config_path)
     finish = datetime.datetime.now() - start
-    print('Time to finish: ' + str(finish.total_seconds()))
-
-
+    logging.info(f'Time to finish: {finish.total_seconds()} seconds')
+    
 if __name__ == '__main__':
     main()
